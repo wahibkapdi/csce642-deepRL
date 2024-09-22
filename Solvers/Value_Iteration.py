@@ -62,16 +62,18 @@ class ValueIteration(AbstractSolver):
                 Once those values have been updated, that's it for this function/class
         """
 
-        # you can add variables here if it is helpful
-
         # Update the estimated value of each state
-        for each_state in range(self.env.observation_space.n):
+        for state in range(self.env.observation_space.n):
             # Do a one-step lookahead to find the best action
             # Update the value function. Ref: Sutton book eq. 4.10.
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
+            action_values = self.one_step_lookahead(state)
+            best_action_value = max(action_values)
 
+            self.V[state] = best_action_value
+        
         # Dont worry about this part
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
         self.statistics[Statistics.Steps.value] = -1
@@ -140,7 +142,10 @@ class ValueIteration(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
+            action_values = self.one_step_lookahead(state)
+            best_action_value = np.argmax(action_values)
             
+            return best_action_value
 
         return policy_fn
 
@@ -192,6 +197,14 @@ class AsynchVI(ValueIteration):
         # Do a one-step lookahead to find the best action       #
         # Update the value function. Ref: Sutton book eq. 4.10. #
         #########################################################
+
+        state = self.pq.pop()
+        best_action_value = max(self.one_step_lookahead(state))
+        self.V[state] = best_action_value
+
+        for predecessor in self.pred[state]:
+            diff = abs(self.V[predecessor] - max(self.one_step_lookahead(predecessor)))
+            self.pq.update(predecessor, -diff)
 
         # you can ignore this part
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
