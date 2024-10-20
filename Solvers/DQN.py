@@ -101,6 +101,12 @@ class DQN(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+        actions = self.model(torch.as_tensor(state, dtype=torch.float32))
+        nA = self.env.action_space.n
+        best_action = torch.argmax(actions)
+        probs = np.ones(actions.shape) * self.options.epsilon / nA
+        probs[best_action] = 1 - self.options.epsilon + self.options.epsilon / nA
+        return probs
 
 
     def compute_target_values(self, next_states, rewards, dones):
@@ -113,7 +119,9 @@ class DQN(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
-
+        next_q_values = self.target_model(next_states)
+        max_next_q_values = torch.max(next_q_values, dim=1)[0]
+        return rewards + (1 - dones) * self.options.gamma * max_next_q_values
 
     def replay(self):
         """
@@ -188,7 +196,18 @@ class DQN(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
-
+            probs = self.epsilon_greedy(state)
+            action = np.random.choice(np.arange(len(probs)), p=probs)
+            next_state, reward, done, _ = self.step(action)
+            self.memorize(state, action, reward, next_state, done)
+            self.replay()
+            state = next_state
+            self.n_steps += 1
+            if self.n_steps % self.options.update_target_estimator_every == 0:
+                self.update_target_model()
+                self.n_steps = 0
+            if done:
+                break
 
     def __str__(self):
         return "DQN"
